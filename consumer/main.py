@@ -1,26 +1,17 @@
+from kafka import KafkaConsumer
 import json
-from quixstreams import Application
+import time
 
-app = Application(
-    broker_address="localhost:9092",
-    loglevel="DEBUG",
-    consumer_group="weather_reader",
-    # auto_offset_reset="latest" | "earliest"
+
+# time.sleep(30)
+print("connecting to kafka:9092 ...")
+
+consumer = KafkaConsumer(
+    'posts',
+    bootstrap_servers=['kafka:9092'],
+    value_deserializer=lambda m: json.loads(m.decode('utf-8'))
 )
 
-with app.get_consumer() as consumer:
-    consumer.subscribe(["weather_data_demo"])
-
-    while True:
-        msg = consumer.poll(1)
-        if msg is None:
-            print("Waiting ...")
-        elif msg.error() is not None:
-            raise Exception(msg.error())
-        else:
-            topic = msg.topic().decode("utf8")
-            key = msg.key().decode("utf8")
-            value = json.load(msg.value())
-            offset = msg.offset()
-            print((topic, key, value, offset))
-            # consumer.store_offset(msg)
+# note that this for loop will block forever to wait for the next message
+for message in consumer:
+    print(message.value)
