@@ -35,6 +35,15 @@ services:
       timeout: 60s
       retries: 60
 
+  clickhouse:
+    build: ./db
+    container_name: clickhouse
+    ports:
+      - '8123:8123'
+      - '9000:9000'
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+
   producer:
     build: ./producer
     depends_on:
@@ -48,7 +57,10 @@ services:
         condition: service_started
       kafka:
         condition: service_healthy
+      clickhouse:
+        condition: service_started
 
 volumes:
   kafka-volume:
   zookeeper-volume:
+  clickhouse-data:
