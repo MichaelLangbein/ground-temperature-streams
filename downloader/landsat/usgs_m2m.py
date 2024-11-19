@@ -9,29 +9,11 @@
 #%%
 
 import datetime
-from dataclasses import dataclass
 import requests
 
+from downloader.download.utils import Bbox, TimeRange
 
-@dataclass
-class Bbox:
-    lonMin: float
-    lonMax: float
-    latMin: float
-    latMax: float
-    
-    def toList(self):
-        return [self.lonMin, self.latMax, self.lonMax, self.latMax]
-    
-    def toString(self):
-        return f"{self.toList()}"
-    
-    
-@dataclass
-class TimeRange:
-    minTime: datetime.datetime
-    maxTime: datetime.datetime
-    
+
     
 
 class M2M:
