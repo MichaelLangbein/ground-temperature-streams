@@ -66,6 +66,7 @@ resource "null_resource" "package_function" {
     command = "cd ../WatchData && zip functionSource.zip main.py requirements.txt"
   }
   triggers = {
+    # always_run = "${timestamp()}"
     file_hash_main = "${md5(file("../WatchData/main.py"))}"
     file_hash_requirements = "${md5(file("../WatchData/requirements.txt"))}"
   }
