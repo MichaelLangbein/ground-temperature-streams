@@ -44,7 +44,7 @@ resource "google_pubsub_subscription" "heartbeat_subscription" {
 # timer 
 resource "google_cloud_scheduler_job" "clock" {
   name      = "clock"
-  schedule  = "*/10 * * * *"
+  schedule  = "* * * * *"
   time_zone = "UTC"
   pubsub_target {
     topic_name = google_pubsub_topic.heartbeat_topic.id
@@ -67,7 +67,7 @@ resource "null_resource" "package_function" {
   }
   triggers = {
     # always_run = "${timestamp()}"
-    file_hash_main = "${md5(file("../WatchData/main.py"))}"
+    file_hash_main         = "${md5(file("../WatchData/main.py"))}"
     file_hash_requirements = "${md5(file("../WatchData/requirements.txt"))}"
   }
 }
@@ -82,7 +82,7 @@ resource "google_storage_bucket_object" "source_code" {
 
 # function 
 resource "google_cloudfunctions_function" "watch_data" {
-  depends_on = [google_storage_bucket_object.source_code]
+  depends_on            = [google_storage_bucket_object.source_code, google_project_service.cloud_functions_api, google_project_service.cloud_build_api]
   name                  = "watch_data"
   runtime               = "python311"
   entry_point           = "scanForNewData"
