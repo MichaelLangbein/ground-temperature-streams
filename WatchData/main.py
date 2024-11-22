@@ -7,7 +7,7 @@ def scanForNewData(event, context):
     storageClient = storage.Client()
     buckets = list(storageClient.list_buckets(prefix='ecmwf-open-data'))
     
-    print("List of buckets: ") 
+    print(f"List of buckets (count: {len(bucket)}):") 
     for bucket in buckets: 
         print(bucket.name) 
     

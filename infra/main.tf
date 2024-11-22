@@ -73,13 +73,15 @@ resource "null_resource" "package_function" {
 
 # function-code
 resource "google_storage_bucket_object" "source_code" {
-  name   = "functionSource.zip"
-  bucket = google_storage_bucket.source_code_bucket.id
-  source = "../WatchData/functionSource.zip"
+  depends_on = [null_resource.package_function]
+  name       = "functionSource.zip"
+  bucket     = google_storage_bucket.source_code_bucket.id
+  source     = "../WatchData/functionSource.zip"
 }
 
 # function 
 resource "google_cloudfunctions_function" "watch_data" {
+  depends_on = [google_storage_bucket_object.source_code]
   name                  = "watch_data"
   runtime               = "python311"
   entry_point           = "scanForNewData"
