@@ -1,11 +1,12 @@
+
 variable "project_id" {
   description = "The project ID for Google Cloud."
   type        = string
-  default     = "mindful-atlas-442214-f7"
+  default     = "experiments-442613"
 }
 
 variable "region" {
-  description = "The region where resources will be deployed."
+  description = "Region"
   type        = string
-  default     = "europe-west1"
+  default     = "europe-west3"
 }

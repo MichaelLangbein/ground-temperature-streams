@@ -1,0 +1,43 @@
+#! /bin/bash
+
+
+# create project
+gcloud projects create experiments-442613
+gcloud config set project experiments-442613
+# @TODO: connect a billing-account/credit-card
+echo "Don't forget to connect a billing-account/credit-card"
+
+# create user
+cloud iam service-accounts create trfmbot --display-name="terraform bot"
+gcloud iam service-accounts keys create mykeyfile.json --iam-account=trfmbot@experiments-442613.iam.gserviceaccount.com
+
+# Add permissions to your service-account as required by your main.tf.
+# If you need a certain permission, find the matching role here:
+# https://cloud.google.com/iam/docs/permissions-reference
+# Also, find terrform documentation for different resources here:
+# https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/
+
+# activate pubsub api
+gcloud services enable pubsub.googleapis.com
+gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/pubsub.editor"
+
+# activate storage api
+gcloud services enable storage.googleapis.com
+gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/storage.admin"
+
+# activate cloud scheduler api
+gcloud services enable cloudscheduler.googleapis.com
+gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/cloudscheduler.admin"
+
+# activate cloudfunctions api
+gcloud services enable cloudfunctions.googleapis.com
+gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/cloudfunctions.developer"
+# follow-up permissions associated with cloudfunctions
+gcloud services enable cloudbuild.googleapis.com
+gcloud iam service-accounts add-iam-policy-binding projects/-/serviceAccounts/152847464795-compute@developer.gserviceaccount.com --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/iam.serviceAccountUser"
+gcloud services enable eventarc.googleapis.com
+gcloud services enable run.googleapis.com
+
+
+# sleep for one minute to allow permissions to propagate
+sleep 60
