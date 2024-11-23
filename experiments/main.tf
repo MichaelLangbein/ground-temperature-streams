@@ -25,40 +25,19 @@ resource "google_storage_bucket" "source_code_bucket_1234" {
   location = var.region
 }
 
-resource "null_resource" "package_function" {
-  provisioner "local-exec" {
-    command = "zip functionSource.zip main.py"
-  }
-  triggers = {
-    # always_run = "${timestamp()}"
-    file_hash_main = "${md5(file("./main.py"))}"
-  }
+data "archive_file" "source_code" {
+  type        = "zip"
+  source_dir  = "./src/"
+  output_path = "./functionSource.zip"
 }
 
+# Updating name ensures that the source code is re-uploaded
+# https://stackoverflow.com/questions/71320503/is-it-possible-to-update-the-source-code-of-a-gcp-cloud-function-in-terraform
 resource "google_storage_bucket_object" "source_code" {
-  name   = "functionSource.zip"
+  name   = "functionSource.${data.archive_file.source_code.output_md5}.zip"
+  source = data.archive_file.source_code.output_path
   bucket = google_storage_bucket.source_code_bucket_1234.name
-  source = "./functionSource.zip"
-  # to make sure that this updates when the zip file changes,
-  # both `depends_on` and `lifecycle` are required!
-  depends_on = [null_resource.package_function]
-  lifecycle {
-    create_before_destroy = true
-  }
 }
-
-# resource "google_cloudfunctions_function" "check_data" {
-#   name                  = "check_data"
-#   runtime               = "python310"
-#   entry_point           = "entryPoint"
-#   source_archive_bucket = google_storage_bucket.source_code_bucket_1234.name
-#   source_archive_object = google_storage_bucket_object.source_code.name
-#   event_trigger {
-#     event_type = "google.pubsub.topic.publish"
-#     resource   = google_pubsub_topic.heartbeat_topic.id
-#   }
-#   available_memory_mb   = 256
-# }
 
 resource "google_cloudfunctions2_function" "check_data" {
   name        = "check_data"
@@ -78,6 +57,7 @@ resource "google_cloudfunctions2_function" "check_data" {
     trigger_region = var.region
     event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
     pubsub_topic   = google_pubsub_topic.heartbeat_topic.id
+    retry_policy   = "RETRY_POLICY_DO_NOT_RETRY"
   }
   service_config {
     max_instance_count = 1
