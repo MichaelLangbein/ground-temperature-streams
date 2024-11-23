@@ -1,2 +1,3 @@
-def entryPoint():
-    print("Hello again from python .... updated again")
+def entryPoint(event, context):
+    print("Event: ", event)
+    print("Hello from python")

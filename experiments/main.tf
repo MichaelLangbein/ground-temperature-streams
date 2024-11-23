@@ -47,6 +47,19 @@ resource "google_storage_bucket_object" "source_code" {
   }
 }
 
+# resource "google_cloudfunctions_function" "check_data" {
+#   name                  = "check_data"
+#   runtime               = "python310"
+#   entry_point           = "entryPoint"
+#   source_archive_bucket = google_storage_bucket.source_code_bucket_1234.name
+#   source_archive_object = google_storage_bucket_object.source_code.name
+#   event_trigger {
+#     event_type = "google.pubsub.topic.publish"
+#     resource   = google_pubsub_topic.heartbeat_topic.id
+#   }
+#   available_memory_mb   = 256
+# }
+
 resource "google_cloudfunctions2_function" "check_data" {
   name        = "check_data"
   location    = var.region
@@ -70,4 +83,5 @@ resource "google_cloudfunctions2_function" "check_data" {
     max_instance_count = 1
     available_memory   = "256M"
   }
+  depends_on = [google_storage_bucket_object.source_code]
 }
