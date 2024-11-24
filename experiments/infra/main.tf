@@ -27,8 +27,8 @@ resource "google_storage_bucket" "source_code_bucket_1234" {
 
 data "archive_file" "source_code" {
   type        = "zip"
-  source_dir  = "./src/"
-  output_path = "./functionSource.zip"
+  source_dir  = "../WatchData/"
+  output_path = "../functionSource.zip"
 }
 
 # Updating name ensures that the source code is re-uploaded
