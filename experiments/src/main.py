@@ -13,7 +13,3 @@ def entryPoint(event, context):
 
     print(f"Results: {len(buckets)}")
 
-
-
-
-
