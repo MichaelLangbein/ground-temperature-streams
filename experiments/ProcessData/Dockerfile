@@ -3,4 +3,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-CMD ["python", "main.py"]
+# Per default, cloud run sends traffic to port 8080 (using an env variable)
+# If deployment takes long, it might be because gcp is trying for minutes to 
+# access port 8080 even though you haven't made it available.
+CMD [ "python3", "-m" , "flask", "run", "--host=0.0.0.0", "--port=8080"]

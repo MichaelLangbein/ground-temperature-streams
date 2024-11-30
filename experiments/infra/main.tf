@@ -134,7 +134,15 @@ resource "google_cloud_run_service" "process_data_service" {
   template {
     spec {
       containers {
-        image = "gcr.io/${var.project_id}/mydockerimages/processdata"
+        # As you push new versions of the image, the images hash will change. 
+        # `latest`, however, will always point to the latest built image. 
+        # If you want a specific version, replace `latest` with the hash of the version you want.
+        image = "europe-west3-docker.pkg.dev/experiments-442613/mydockerimages/processdata:latest"
+      }
+    }
+    metadata {
+      annotations = {
+        "autoscaling.knative.dev/maxScale" : "1"
       }
     }
   }
