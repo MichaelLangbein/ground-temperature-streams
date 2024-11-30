@@ -10,3 +10,8 @@ variable "region" {
   type        = string
   default     = "europe-west3"
 }
+
+variable "repo" {
+  type    = string
+  default = "https://github.com/MichaelLangbein/ground-temperature-streams"
+}

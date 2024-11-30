@@ -40,8 +40,14 @@ gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccou
 gcloud iam service-accounts add-iam-policy-binding projects/-/serviceAccounts/152847464795-compute@developer.gserviceaccount.com --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/iam.serviceAccountUser"
 gcloud services enable eventarc.googleapis.com
 gcloud services enable run.googleapis.com
-# Only cloudfunctions-version-2 seems to be updated automatically when the source-code changes
 
+# activate artifact registry api
+gcloud services enable artifactregistry.googleapis.com
+gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/artifactregistry.admin"
+gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/artifactregistry.createOnPushWriter"
+# activate cloud-build api
+gcloud services enable cloudbuild.googleapis.com
+gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/resourcemanager.projectEditor"
 
 # sleep for one minute to allow permissions to propagate
 sleep 60
