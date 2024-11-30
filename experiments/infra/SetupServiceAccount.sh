@@ -45,9 +45,13 @@ gcloud services enable run.googleapis.com
 gcloud services enable artifactregistry.googleapis.com
 gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/artifactregistry.admin"
 gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/artifactregistry.createOnPushWriter"
-# activate cloud-build api
+# activate api's and permissions for github-build-trigger
 gcloud services enable cloudbuild.googleapis.com
-gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/resourcemanager.projectEditor"
+gcloud services enable containerregistry.googleapis.com
+gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/storage.admin"
+
+# allow cloud run
+gcloud projects add-iam-policy-binding experiments-442613 --member="serviceAccount:trfmbot@experiments-442613.iam.gserviceaccount.com" --role="roles/run.admin"
 
 # sleep for one minute to allow permissions to propagate
 sleep 60

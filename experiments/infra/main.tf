@@ -100,13 +100,11 @@ resource "google_artifact_registry_repository" "registry" {
 # cd ../ProcessData/
 # docker image build -t docker push europe-west3-docker.pkg.dev/experiments-442613/mydockerimages/processdata .
 # docker push europe-west3-docker.pkg.dev/experiments-442613/mydockerimages/processdata
-
-
 # resource "google_cloudbuild_trigger" "trigger" {
 #   name        = "ProcessData trigger"
 #   description = "Trigger to build container on push to master"
 #   trigger_template {
-#     repo_name   = var.repo
+#     repo_name   = "https://github.com/MichaelLangbein/ground-temperature-streams"
 #     branch_name = "master"
 #   }
 #   github {
@@ -119,13 +117,11 @@ resource "google_artifact_registry_repository" "registry" {
 #   build {
 #     step {
 #       name = "gcr.io/cloud-builders/docker"
-#       args = ["build", "-t", "gcr.io/${var.project_id}/processdata:latest", "."]
+#       args = ["build", "-t", "europe-west3-docker.pkg.dev/${var.project_id}/mydockerimages/processdata", "."]
 #     }
-#     images = ["gcr.io/${var.project_id}/processdata:latest"]
+#     images = ["europe-west3-docker.pkg.dev/${var.project_id}/mydockerimages/processdata"]
 #   }
 # }
-
-
 
 
 resource "google_cloud_run_service" "process_data_service" {
@@ -137,7 +133,7 @@ resource "google_cloud_run_service" "process_data_service" {
         # As you push new versions of the image, the images hash will change. 
         # `latest`, however, will always point to the latest built image. 
         # If you want a specific version, replace `latest` with the hash of the version you want.
-        image = "europe-west3-docker.pkg.dev/experiments-442613/mydockerimages/processdata:latest"
+        image = "europe-west3-docker.pkg.dev/${var.project_id}/mydockerimages/processdata:latest"
       }
     }
     metadata {
@@ -150,4 +146,23 @@ resource "google_cloud_run_service" "process_data_service" {
     percent         = 100
     latest_revision = true
   }
+}
+
+resource "google_pubsub_subscription" "push_to_cloudrun" {
+  name  = "push-to-cloudrun"
+  topic = google_pubsub_topic.heartbeat_topic.name
+  push_config {
+    # This has pubsub post it's messages to our cloudrun instance
+    push_endpoint = "${google_cloud_run_service.process_data_service.status[0].url}/echo"
+  }
+}
+
+# allow service account to invoke the service
+# https://cloud.google.com/run/docs/authenticating/service-to-service?hl=de#terraform
+resource "google_cloud_run_service_iam_binding" "invoker" {
+  service = google_cloud_run_service.process_data_service.name # object
+  role    = "roles/run.invoker"                                # verb
+  members = [                                                  # subject
+    "serviceAccount:trfmbot@${var.project_id}.iam.gserviceaccount.com"
+  ]
 }
