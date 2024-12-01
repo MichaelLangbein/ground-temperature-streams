@@ -5,6 +5,10 @@ import logging
 
 
 # Configure logging 
+# Buffering: Sometimes, print statements may be buffered, meaning they are not immediately flushed to stdout. 
+# This can cause delays in log visibility, especially when an instance is terminated. 
+# Using logging ensures logs are handled and flushed properly.
+
 logging.basicConfig(level=logging.INFO) 
 logger = logging.getLogger('cloud-run-app') 
 app = Flask(__name__) 
