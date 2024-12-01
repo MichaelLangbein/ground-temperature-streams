@@ -20,6 +20,9 @@ provider "google" {
 
 #------------------------------------------------------------------------------------------------------------
 # Service account
+# 
+# Should maybe be split up into one account for pubsub (which can invoke cloudrun) 
+# and one for cloudrun (which can read/write to pubsub)
 #------------------------------------------------------------------------------------------------------------
 
 resource "google_service_account" "pubsub_cloudrun_sa" {
@@ -30,6 +33,12 @@ resource "google_service_account" "pubsub_cloudrun_sa" {
 resource "google_project_iam_binding" "cloudrun_invoking" {
   project = var.project_id
   role    = "roles/run.invoker"
+  members = ["serviceAccount:${google_service_account.pubsub_cloudrun_sa.email}", ]
+}
+
+resource "google_project_iam_binding" "pubsub_writing" {
+  project = var.project_id
+  role    = "roles/pubsub.publisher"
   members = ["serviceAccount:${google_service_account.pubsub_cloudrun_sa.email}", ]
 }
 
@@ -139,6 +148,11 @@ resource "google_cloud_run_service" "processor_service" {
       service_account_name = google_service_account.pubsub_cloudrun_sa.email
       containers {
         image = local.processor_image_name
+        env {
+          name  = "target_topic"
+          value = google_pubsub_topic.data_topic.id
+          # should be: projects/deleteme-443412/topics/data_topic
+        }
       }
     }
     metadata {
@@ -170,4 +184,8 @@ resource "google_pubsub_subscription" "push_to_cloudrun" {
       service_account_email = google_service_account.pubsub_cloudrun_sa.email
     }
   }
+}
+
+resource "google_pubsub_topic" "data_topic" {
+  name = "data_topic"
 }
