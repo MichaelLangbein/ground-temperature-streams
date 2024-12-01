@@ -1,3 +1,18 @@
+terraform {
+  required_providers {
+    docker = {
+      source = "kreuzwerker/docker"
+    }
+    google = {
+      source = "hashicorp/google"
+    }
+  }
+}
+
+provider "docker" {
+  host = "unix:///var/run/docker.sock"
+}
+
 provider "google" {
   project = var.project_id
   region  = var.region
@@ -45,7 +60,7 @@ resource "google_cloud_scheduler_job" "clock" {
   time_zone = "Europe/Berlin"
   pubsub_target {
     topic_name = google_pubsub_topic.heartbeat_topic.id
-    data       = base64encode("{'body': 'tick tock'}")
+    data       = base64encode("{ \"body\": \"tick tock\" }")
   }
   # NB: a scheduler can also use a HTTP_target to directly post to a service,
   # circumventing a pubsub queue.
@@ -78,25 +93,33 @@ locals {
   processor_source_files   = fileset("./processor", "**/*.py")
   processor_source_content = join("", [for file in local.processor_source_files : file("./processor/${file}")])
   processor_source_hash    = md5(local.processor_source_content)
+  processor_image_name     = "europe-west3-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.registry.name}/processor:${local.processor_source_hash}"
 }
 
-# Rebuild Docker image and push to Artifact Registry 
-# manually set up docker auth: gcloud auth configure-docker europe-west3-docker.pkg.dev
-resource "null_resource" "build_and_push" {
-  provisioner "local-exec" {
-    command = <<EOF
-            cd ./processor
-            docker build -t europe-west3-docker.pkg.dev/${var.project_id}/mydockerimages/processdata . 
-            docker push europe-west3-docker.pkg.dev/${var.project_id}/mydockerimages/processdata 
-            cd ../
-        EOF 
+resource "docker_image" "processor_image" {
+  name = local.processor_image_name
+  build {
+    context = "./processor"
   }
   triggers = {
     source_hash = local.processor_source_hash
     docker_hash = "${md5(file("./processor/Dockerfile"))}"
   }
-  depends_on = [google_artifact_registry_repository.registry]
 }
+
+
+# pushing image to gcp image repo. 
+# weirdly, there is no idiomatic terraform resource to accomplish this.
+resource "null_resource" "push_docker_image" {
+  provisioner "local-exec" {
+    command = "docker push ${local.processor_image_name}"
+  }
+  triggers = {
+    image_id = docker_image.processor_image.image_id
+  }
+  depends_on = [docker_image.processor_image]
+}
+
 
 
 #------------------------------------------------------------------------------------------------------------
@@ -108,17 +131,14 @@ resource "google_project_service" "cloud_run_api" {
   project = var.project_id
 }
 
-resource "google_cloud_run_service" "process_data_service" {
+resource "google_cloud_run_service" "processor_service" {
   name     = "process-data-service"
   location = var.region
   template {
     spec {
       service_account_name = google_service_account.pubsub_cloudrun_sa.email
       containers {
-        # As you push new versions of the image, the images hash will change. 
-        # `latest`, however, will always point to the latest built image. 
-        # If you want a specific version, replace `latest` with the hash of the version you want.
-        image = "europe-west3-docker.pkg.dev/${var.project_id}/mydockerimages/processdata:latest"
+        image = local.processor_image_name
       }
     }
     metadata {
@@ -133,7 +153,8 @@ resource "google_cloud_run_service" "process_data_service" {
   }
   depends_on = [
     google_project_service.cloud_run_api,
-    null_resource.build_and_push
+    docker_image.processor_image,
+    null_resource.push_docker_image
   ]
 }
 
@@ -142,7 +163,9 @@ resource "google_pubsub_subscription" "push_to_cloudrun" {
   topic = google_pubsub_topic.heartbeat_topic.name
   push_config {
     # This has pubsub post it's messages to our cloudrun instance
-    push_endpoint = "${google_cloud_run_service.process_data_service.status[0].url}/echo"
+    push_endpoint = "${google_cloud_run_service.processor_service.status[0].url}/echo"
+    # giving the subscription the same user as the cloudrun instance
+    # ... not sure if this is actually required
     oidc_token {
       service_account_email = google_service_account.pubsub_cloudrun_sa.email
     }
