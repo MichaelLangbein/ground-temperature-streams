@@ -12,13 +12,13 @@ import os
 
 def cutGeotiff(inputTiffPath: str, outputTiffPath: str, bbox: Bbox):
     # Open the input GeoTIFF file
-    with rasterio.open(inputTiffPath) as src:
-        bboxTransformed = bbox.toCrs(src.crs)
+    with rasterio.open(inputTiffPath) as inputFile:
+        bboxTransformed = bbox.toCrs(inputFile.crs)
 
         # Get the bounds of the raster
-        left, bottom, right, top = src.bounds
+        left, bottom, right, top = inputFile.bounds
         sourceBbox = Bbox(lonMin=left, latMin=bottom,
-                          lonMax=right, latMax=top, crs=src.crs)
+                          lonMax=right, latMax=top, crs=inputFile.crs)
         if not sourceBbox.intersects(bboxTransformed):
             raise ValueError(
                 "The source bbox does not intersect the target bbox", sourceBbox, bboxTransformed)
@@ -28,29 +28,29 @@ def cutGeotiff(inputTiffPath: str, outputTiffPath: str, bbox: Bbox):
         window = from_bounds(
             left=cutOffBbox.lonMin, bottom=cutOffBbox.latMin,
             right=cutOffBbox.lonMax, top=cutOffBbox.latMax,
-            transform=src.transform
+            transform=inputFile.transform
         )
         # Read the data from the defined window
-        data = src.read(window=window)
+        data = inputFile.read(window=window)
         # Update the metadata with the new window's transform
-        transform = src.window_transform(window)
-        metadata = src.meta.copy()
+        transform = inputFile.window_transform(window)
+        metadata = inputFile.meta.copy()
         metadata.update(
             {'height': window.height, 'width': window.width, 'transform': transform})
         # Write the cut-out data to a new GeoTIFF file
-        with rasterio.open(outputTiffPath, 'w', **metadata) as dst:
+        with rasterio.open(outputTiffPath, 'w+', **metadata) as dst:
             dst.write(data)
 
 
 def downloadOne(username: str, password: str, bbox: Bbox, timeRange: TimeRange, bands: list[str]):
-    centerPoint = bbox.center()
     allowedBands = [
-        "B1", "B2", "B3", "B4", "B5", "B6", "B8", "B9", "B10", "B11"
+        "B1", "B2", "B3", "B4", "B5", "B6", "B8", "B9", "B10", "B11",
         "QA_PIXEL", "QA_RADSAT", "SAA", "SZA", "VAA", "VZA"
     ]
     for band in bands:
         if band not in allowedBands:
             raise Exception(f"Band {band} is not allowed.")
+    centerPoint = bbox.center()
     downloadTarInto = './tmpData'
     extractTarInto = './tmpData/extracted/'
     saveCutoutTo = "./tmpData/cutout/"
@@ -75,6 +75,13 @@ def downloadOne(username: str, password: str, bbox: Bbox, timeRange: TimeRange, 
         if os.path.exists(f"{downloadTarInto}/{scene['display_id']}.tar"):
             downloadedTarPath = f"{downloadTarInto}/{scene['display_id']}.tar"
             break
+        sceneBbox = Bbox(
+            lonMin=scene["corner_lower_left_longitude"],
+            lonMax=scene["corner_upper_right_longitude"],
+            latMin=scene["corner_lower_left_latitude"],
+            latMax=scene["corner_upper_right_latitude"],
+            crs="WGS84"
+        )
         downloadedTarPath = ee.download(
             scene["entity_id"], output_dir=downloadTarInto)
         print("Got file: ", downloadedTarPath)
@@ -150,7 +157,7 @@ with tarfile.TarFile(localFilePath, 'r') as t:
 # %% cut out
 
 unzipTargetDir = "./tmpData/extracted"
-sceneId = "LC08_L1TP_191031_20201221_20210310_02_T1"
+sceneId = "LC08_L1TP_194027_20210111_20210307_02_T1"
 bands = [
     "B1", "B6", "QA_PIXEL"
 ]
@@ -161,7 +168,36 @@ for band in bands:
     bandFilePath = f"{unzipTargetDir}/{sceneId}_{band}.TIF"
     inputTiffPath = bandFilePath
     outputTiffPath = f"{cutoutDir}/{sceneId}_{band}.TIF"
-    cutGeotiff(inputTiffPath, outputTiffPath, bbox)
+    # cutGeotiff(inputTiffPath, outputTiffPath, bbox)
+
+    with rasterio.open(inputTiffPath) as src:
+        bboxTransformed = bbox.toCrs(src.crs)
+
+        # Get the bounds of the raster
+        left, bottom, right, top = src.bounds
+        sourceBbox = Bbox(lonMin=left, latMin=bottom,
+                          lonMax=right, latMax=top, crs=src.crs)
+        if not sourceBbox.intersects(bboxTransformed):
+            raise ValueError(
+                "The source bbox does not intersect the target bbox", sourceBbox, bboxTransformed)
+        cutOffBbox = bboxTransformed.getOverlap(sourceBbox)
+
+        # Define the window using bounding box coordinates
+        window = from_bounds(
+            left=cutOffBbox.lonMin, bottom=cutOffBbox.latMin,
+            right=cutOffBbox.lonMax, top=cutOffBbox.latMax,
+            transform=src.transform
+        )
+        # Read the data from the defined window
+        data = src.read(window=window)
+        # Update the metadata with the new window's transform
+        transform = src.window_transform(window)
+        metadata = src.meta.copy()
+        metadata.update(
+            {'height': window.height, 'width': window.width, 'transform': transform})
+        # Write the cut-out data to a new GeoTIFF file
+        with rasterio.open(outputTiffPath, 'w', **metadata) as dst:
+            dst.write(data)
 
 
 # %%

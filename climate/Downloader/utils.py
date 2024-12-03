@@ -11,12 +11,13 @@ class Point:
     crs: str = "epsg:4326"
 
     def toCrs(self, newCrs: str):
-        coordTransformer = Transformer.from_crs(self.crs, newCrs)
+        coordTransformer = Transformer.from_crs(
+            self.crs, newCrs, always_xy=True)
         transformed = coordTransformer.transform(self.lon, self.lat)
         return Point(
-            crs=newCrs,
             lon=transformed[0],
-            lat=transformed[1]
+            lat=transformed[1],
+            crs=newCrs,
         )
 
 
@@ -98,7 +99,7 @@ class Bbox:
     def toCrs(self, newCrs: str):
         return Bbox.fromPoints(
             bottomLeft=self.BottomLeft().toCrs(newCrs),
-            topRight=self.topRight().toCrs(newCrs)
+            topRight=self.topRight().toCrs(newCrs),
         )
 
 
