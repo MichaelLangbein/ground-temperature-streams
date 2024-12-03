@@ -19,3 +19,18 @@
 
 -   Listing files for one scene: `gsutils ls gs://gcp-public-data-landsat/LC08/01/190/032/LC08_L1TP_190032_20211217_20211223_01_T1`
 -   Download one band: `gsutil cp gs://gcp-public-data-landsat/LC08/01/190/032/LC08_L1TP_190032_20211217_20211223_01_T1/LC08_L1TP_190032_20211217_20211223_01_T1_B10.TIF .`
+
+# 2. Architecture
+
+-   pubsub
+-   Downloader
+    -   takes bbox and timerange
+    -   writes zipfile to bucket
+    -   notifies pubsub
+-   bucket
+-   Assimilator
+    -   takes zipfile from bucket
+    -   calculates LST
+    -   assimilates LST with point observations
+    -   writes to BigQuery
+-   BigQuery
