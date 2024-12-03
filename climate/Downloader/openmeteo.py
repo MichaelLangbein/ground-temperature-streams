@@ -13,7 +13,7 @@ retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
 openmeteo = openmeteo_requests.Client(session=retry_session)
 
 
-def downloadOpenMeteo(displayId: str, lon: int, lat: int, timeRange):
+def downloadOpenMeteo(saveCsvsTo: str, displayId: str, lon: int, lat: int, timeRange):
 
     # The order of variables in hourly or daily is important to assign them correctly below
     url = "https://archive-api.open-meteo.com/v1/archive"
@@ -44,7 +44,7 @@ def downloadOpenMeteo(displayId: str, lon: int, lat: int, timeRange):
 
         hourlyDataFrame = pd.DataFrame(data=hourlyData)
 
-        targetFilePath = f"./tmpData/cutout/{displayId}_lat{lat}_lon{lon}.csv"
+        targetFilePath = f"{saveCsvsTo}/{displayId}_lat{lat}_lon{lon}.csv"
         hourlyDataFrame.to_csv(targetFilePath, index=False)
 
         return targetFilePath

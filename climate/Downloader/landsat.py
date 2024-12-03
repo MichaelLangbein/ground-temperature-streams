@@ -41,7 +41,7 @@ def cutGeotiff(inputTiffPath: str, outputTiffPath: str, bbox: Bbox):
     return outputTiffPath, cutOffBbox
 
 
-def downloadLandsat8(username: str, password: str, bbox: Bbox, timeRange: TimeRange, bands: list[str], maxNr: int = 1):
+def downloadLandsat8(saveCutoutTo: str, username: str, password: str, bbox: Bbox, timeRange: TimeRange, bands: list[str], maxNr: int = 1):
     allowedBands = [
         "B1", "B2", "B3", "B4", "B5", "B6", "B8", "B9", "B10", "B11",
         "QA_PIXEL", "QA_RADSAT", "SAA", "SZA", "VAA", "VZA"
@@ -52,7 +52,6 @@ def downloadLandsat8(username: str, password: str, bbox: Bbox, timeRange: TimeRa
     centerPoint = bbox.center()
     downloadTarInto = './tmpData'
     extractTarInto = './tmpData/extracted/'
-    saveCutoutTo = "./tmpData/cutout/"
     os.makedirs(extractTarInto, exist_ok=True)
     os.makedirs(saveCutoutTo, exist_ok=True)
 
