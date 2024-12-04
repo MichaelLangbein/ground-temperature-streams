@@ -1,6 +1,7 @@
-import numpy as np
+import pandas as pd
 from flask import Flask, request
 from download import download
+from bigquery import uploadData, Data
 import base64
 import logging
 import json
@@ -41,9 +42,23 @@ def process():
     bucketName = data["bucketName"]
     blobName = data["blobName"]
 
-    # step 3: process
+    # step 3: download
     downloadInto = "./data"
     downloadedPath = download(bucketName, blobName, downloadInto)
 
+    # step 4: process
+    # @TODO
+
+    # step 5: upload
+    data = Data(
+        longitude=[10.0, 11.0],
+        latitude=[40.0, 41.0],
+        h3index=["fdsafsd", "fdsafds"],
+        date=[pd.Timestamp("2020-01-01"), pd.Timestamp("2020-01-02")],
+        landSurfaceTemperature=[12.1, 14.2]
+    )
+    result = uploadData(data, datasetName="lst_dataset",
+                        tableName="lst_table")
+
     # step 4: output
-    return outgoing, 200
+    return {"result": "success"}, 200

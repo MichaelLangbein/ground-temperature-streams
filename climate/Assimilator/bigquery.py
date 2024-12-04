@@ -51,7 +51,7 @@ def uploadData(data: Data, datasetName="lst_dataset", tableName="lst_table"):
     df['h3index'] = data.h3index
     df['date'] = data.date
     df['landSurfaceTemperature'] = data.landSurfaceTemperature
-    return uploadData(df, datasetName, tableName)
+    return uploadDataFrame(df, datasetName, tableName)
 
 
 def uploadDataFrame(df: pd.DataFrame, datasetName="lst_dataset", tableName="lst_table"):
