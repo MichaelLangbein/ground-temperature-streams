@@ -109,7 +109,7 @@ resource "google_pubsub_topic" "processing_request_topic" {
 
 
 #-----------------------------------------------------------------
-# code to image repo
+# code to image repo (poor man's CI/CD)
 #-----------------------------------------------------------------
 
 resource "google_project_service" "registry_api" {
@@ -130,6 +130,11 @@ locals {
   downloader_source_content = join("", [for file in local.downloader_source_files : file("../Downloader/${file}")])
   downloader_source_hash    = md5(local.downloader_source_content)
   downloader_image_name     = "europe-west3-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.registry.name}/downloader:${local.downloader_source_hash}"
+
+  assimilator_source_files   = fileset("../Assimilator/", "**/*.py")
+  assimilator_source_content = join("", [for file in local.assimilator_source_files : file("../Assimilator/${file}")])
+  assimilator_source_hash    = md5(local.assimilator_source_content)
+  assimilator_image_name     = "europe-west3-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.registry.name}/assimilator:${local.assimilator_source_hash}"
 }
 
 resource "docker_image" "downloader_image" {
@@ -143,8 +148,25 @@ resource "docker_image" "downloader_image" {
   }
 }
 
-# pushing image to gcp image repo. 
-# weirdly, there is no idiomatic terraform resource to accomplish this.
+resource "docker_image" "assimilator_image" {
+  name = local.assimilator_image_name
+  build {
+    context = "../Assimilator"
+  }
+  triggers = {
+    source_hash = local.assimilator_source_hash
+    docker_hash = "${md5(file("../Assimilator/Dockerfile"))}"
+  }
+}
+
+# Pushing images to gcp image repo. 
+# Weirdly, there is no idiomatic terraform resource to accomplish this.
+# To be allowed to do this:
+# gcloud auth configure-docker
+# gcloud projects add-iam-policy-binding climate-443420 \
+# --member=user:info@codeandcolors.net \
+# --role=roles/artifactregistry.writer
+
 resource "null_resource" "push_downloader_image" {
   provisioner "local-exec" {
     command = "docker push ${local.downloader_image_name}"
@@ -153,6 +175,17 @@ resource "null_resource" "push_downloader_image" {
     image_id = docker_image.downloader_image.image_id
   }
   depends_on = [docker_image.downloader_image]
+
+}
+
+resource "null_resource" "push_assimilator_image" {
+  provisioner "local-exec" {
+    command = "docker push ${local.assimilator_image_name}"
+  }
+  triggers = {
+    image_id = docker_image.assimilator_image.image_id
+  }
+  depends_on = [docker_image.assimilator_image]
 }
 
 
@@ -238,7 +271,7 @@ resource "google_pubsub_subscription" "push_to_downloader" {
 }
 
 #-----------------------------------------------------------------
-# cloud run instances
+# bigquery
 #-----------------------------------------------------------------
 
 resource "google_bigquery_dataset" "lst_dataset" {
@@ -247,9 +280,9 @@ resource "google_bigquery_dataset" "lst_dataset" {
 }
 
 resource "google_bigquery_table" "lst_table" {
-  dataset_id = google_bigquery_dataset.lst_dataset.dataset_id
-  table_id   = "lst_table"
-  schema     = <<EOF
+  dataset_id          = google_bigquery_dataset.lst_dataset.dataset_id
+  table_id            = "lst_table"
+  schema              = <<EOF
     [ 
       { "name": "longitude", "type": "FLOAT", "mode": "REQUIRED" }, 
       { "name": "latitude", "type": "FLOAT", "mode": "REQUIRED" }, 
@@ -258,4 +291,5 @@ resource "google_bigquery_table" "lst_table" {
       { "name": "landSurfaceTemperature", "type": "FLOAT", "mode": "NULLABLE" } 
     ] 
   EOF
+  deletion_protection = false
 }
