@@ -170,7 +170,6 @@ resource "google_cloud_run_service" "downloader_service" {
   location = var.region
   template {
     spec {
-      #   service_account_name = google_service_account.pubsub_cloudrun_sa.email
       containers {
         image = local.downloader_image_name
         env {
@@ -238,6 +237,25 @@ resource "google_pubsub_subscription" "push_to_downloader" {
   }
 }
 
-# output "bucketname" {
-#   value = google_storage_bucket.data_bucket_climate123
-# }
+#-----------------------------------------------------------------
+# cloud run instances
+#-----------------------------------------------------------------
+
+resource "google_bigquery_dataset" "lst_dataset" {
+  dataset_id = "lst_dataset"
+  location   = "EU"
+}
+
+resource "google_bigquery_table" "lst_table" {
+  dataset_id = google_bigquery_dataset.lst_dataset.dataset_id
+  table_id   = "lst_table"
+  schema     = <<EOF
+    [ 
+      { "name": "longitude", "type": "FLOAT", "mode": "REQUIRED" }, 
+      { "name": "latitude", "type": "FLOAT", "mode": "REQUIRED" }, 
+      { "name": "h3index", "type": "STRING", "mode": "REQUIRED" }, 
+      { "name": "date", "type": "DATE", "mode": "REQUIRED" }, 
+      { "name": "landSurfaceTemperature", "type": "FLOAT", "mode": "NULLABLE" } 
+    ] 
+  EOF
+}
