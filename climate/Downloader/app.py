@@ -135,7 +135,10 @@ def download():
     writeToBucket(targetBucket, blobName, zipFilePath)
 
     # step 4: output
-    outgoing = {"downloadedData": blobName}
+    outgoing = {
+        "bucketName": targetBucket,
+        "blobName": blobName
+    }
     publish(targetTopic, outgoing)
     lock = False
     return outgoing, 200
