@@ -27,8 +27,8 @@ provider "docker" {
 # data storage bucket
 #-----------------------------------------------------------------
 
-resource "google_storage_bucket" "data_bucket" {
-  name     = "data_bucket"
+resource "google_storage_bucket" "data_bucket_climate123" {
+  name     = "data_bucket_climate123"
   location = var.region
 }
 
@@ -43,14 +43,55 @@ resource "google_project_service" "pubsub_api" {
   disable_dependent_services = true
 }
 
+resource "google_pubsub_schema" "download_request_schema" {
+  name       = "download_request_schema"
+  type       = "AVRO"
+  definition = <<AVRO
+    {
+      "type": "record",
+      "name": "download_request",
+      "fields": [
+        {"name": "startDate", "type": "string", "doc": "YYYY-MM-DD"},
+        {"name": "endDate", "type": "string", "doc": "YYYY-MM-DD"},
+        {"name": "latMin", "type": "float"},
+        {"name": "lonMin", "type": "float"},
+        {"name": "latMax", "type": "float"},
+        {"name": "lonMax", "type": "float"}
+      ]
+    }
+  AVRO
+}
+
+resource "google_pubsub_schema" "processing_request_schema" {
+  name       = "processing_request_schema"
+  type       = "AVRO"
+  definition = <<AVRO
+    {
+      "type": "record",
+      "name": "processing_request",
+      "fields": [
+        {"name": "downloadedData", "type": "string", "doc": "blob name"}
+      ]
+    }
+  AVRO
+}
+
 resource "google_pubsub_topic" "download_request_topic" {
   name    = "download_request_topic"
   project = var.project_id
+  schema_settings {
+    schema   = google_pubsub_schema.download_request_schema.id
+    encoding = "JSON"
+  }
 }
 
 resource "google_pubsub_topic" "processing_request_topic" {
   name    = "processing_request_topic"
   project = var.project_id
+  schema_settings {
+    schema   = google_pubsub_schema.processing_request_schema.id
+    encoding = "JSON"
+  }
 }
 
 
@@ -58,16 +99,22 @@ resource "google_pubsub_topic" "processing_request_topic" {
 # code to image repo
 #-----------------------------------------------------------------
 
+resource "google_project_service" "registry_api" {
+  service                    = "artifactregistry.googleapis.com"
+  project                    = var.project_id
+  disable_dependent_services = true
+}
 
 resource "google_artifact_registry_repository" "registry" {
   format        = "docker"
-  repository_id = "climate_docker_images"
+  repository_id = "climate-docker-images"
   location      = var.region
+  depends_on    = [google_project_service.registry_api]
 }
 
 locals {
   downloader_source_files   = fileset("../Downloader/", "**/*.py")
-  downloader_source_content = join("", [for file in local.downloader_source_files : file("./Downloader/${file}")])
+  downloader_source_content = join("", [for file in local.downloader_source_files : file("../Downloader/${file}")])
   downloader_source_hash    = md5(local.downloader_source_content)
   downloader_image_name     = "europe-west3-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.registry.name}/downloader:${local.downloader_source_hash}"
 }
@@ -75,11 +122,11 @@ locals {
 resource "docker_image" "downloader_image" {
   name = local.downloader_image_name
   build {
-    context = "./Downloader"
+    context = "../Downloader"
   }
   triggers = {
     source_hash = local.downloader_source_hash
-    docker_hash = "${md5(file("./Downloader/Dockerfile"))}"
+    docker_hash = "${md5(file("../Downloader/Dockerfile"))}"
   }
 }
 
@@ -115,7 +162,7 @@ resource "google_cloud_run_service" "downloader_service" {
         image = local.downloader_image_name
         env {
           name  = "target_topic"
-          value = google_pubsub_topic.data_topic.id
+          value = google_pubsub_topic.processing_request_topic.id
         }
         env {
           name  = "usgs_username"
@@ -127,7 +174,7 @@ resource "google_cloud_run_service" "downloader_service" {
         }
         env {
           name  = "target_bucket"
-          value = google_storage_bucket.data_bucket.name
+          value = google_storage_bucket.data_bucket_climate123.name
         }
       }
     }

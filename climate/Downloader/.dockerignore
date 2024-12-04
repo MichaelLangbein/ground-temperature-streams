@@ -1,4 +1,5 @@
 tmpData
 __pycache__
 *.zip
+zipData
 venv

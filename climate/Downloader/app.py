@@ -38,9 +38,10 @@ def downloadData(
                 path, scene["display_id"], lon, lat, timeRange)
     logger.info("successfully downloaded open-meteo data", path)
 
-    zipFileName = shutil.make_archive("data", 'zip', path)
+    zipFileName = shutil.make_archive(
+        base_name="data", format='zip', root_dir=path)
 
-    return f"{path}/{zipFileName}"
+    return f"./{zipFileName}"
 
 
 # Getting environment variables
@@ -108,7 +109,7 @@ def download():
 
     # step 3: process
     zipFilePath = downloadData(logger, bbox, timeRange,
-                               targetBucket, usgsUsername, usgsPassword)
+                               usgsUsername, usgsPassword)
     blobName = os.path.basename(zipFilePath)
     writeToBucket(targetBucket, blobName, zipFilePath)
 
