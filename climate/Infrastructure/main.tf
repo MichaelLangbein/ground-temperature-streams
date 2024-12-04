@@ -82,7 +82,7 @@ resource "google_pubsub_schema" "processing_request_schema" {
       "type": "record",
       "name": "processing_request",
       "fields": [
-        {"name": "bucketName", "type": "string", "doc": "bucket name"}
+        {"name": "bucketName", "type": "string", "doc": "bucket name"},
         {"name": "blobName", "type": "string", "doc": "blob name"}
       ]
     }
