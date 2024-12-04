@@ -20,11 +20,11 @@ def downloadData(
 ):
 
     bands = ["B1", "B6", "QA_PIXEL"]
-    path = "./zipData"
+    path = os.path.abspath("./zipData")
 
     landsatPath, scenes = downloadLandsat8(
         path, usgsUsername, usgsPassword, bbox, timeRange, bands, 1)
-    logger.info("successfully downloaded scenes: ", scenes, path)
+    logger.info(f"successfully downloaded scenes: {len(scenes)} into {path}")
 
     for scene in scenes:
         bbox = scene["cutOffBbox"]
@@ -36,12 +36,15 @@ def downloadData(
                 bbox4326.latMin, bbox4326.latMax), 4)
             csvPath = downloadOpenMeteo(
                 path, scene["display_id"], lon, lat, timeRange)
-    logger.info("successfully downloaded open-meteo data", path)
+    logger.info(f"successfully downloaded open-meteo data into {path}")
 
+    logger.warn("now zipping ...")
     zipFileName = shutil.make_archive(
         base_name="data", format='zip', root_dir=path)
+    logger.warn(f"""successfully zipped into {zipFileName} at {
+                os.path.abspath(zipFileName)}""")
 
-    return f"./{zipFileName}"
+    return os.path.abspath(zipFileName)
 
 
 # Getting environment variables
@@ -84,6 +87,13 @@ def writeToBucket(bucketName, blobName, filePath):
     blob.upload_from_filename(filePath)
 
 
+# Subscriptions are a bit hyperactive:
+# they will try to resend a message if an error occurs.
+# The earthexplorer api, however, doesn't like
+# parallel requests.
+lock = False
+
+
 @app.route("/")
 def hello():
     return "Hello from downloader"
@@ -91,20 +101,31 @@ def hello():
 
 @app.route("/download", methods=["POST"])
 def download():
+    global lock
+    if lock == True:
+        return "busy", 503
+    lock = True
 
     # step 1: get pubsub message
     envelope = request.get_json()
     if not envelope:
+        lock = False
         return "Bad Request: no Pub/Sub message received", 400
     pubsub_message = envelope.get("message")
     if not pubsub_message:
+        lock = False
         return "Bad Request: invalid Pub/Sub message format", 400
     data = base64.b64decode(pubsub_message.get(
         "data", "")).decode("utf-8").strip()
     app.logger.info(f"Received message: {data}")
+    data = json.loads(data)
 
     # step 2: parse
-    bbox = Bbox.fromString(data["bbox"])
+    lonMin = float(data["lonMin"])
+    lonMax = float(data["lonMax"])
+    latMin = float(data["latMin"])
+    latMax = float(data["latMax"])
+    bbox = Bbox(lonMin, latMin, lonMax, latMax)
     timeRange = TimeRange.fromStrings(data["startDate"], data["endDate"])
 
     # step 3: process
@@ -116,4 +137,5 @@ def download():
     # step 4: output
     outgoing = {"downloadedData": blobName}
     publish(targetTopic, outgoing)
+    lock = False
     return outgoing, 200

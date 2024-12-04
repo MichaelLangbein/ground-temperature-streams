@@ -28,14 +28,26 @@ provider "docker" {
 #-----------------------------------------------------------------
 
 resource "google_storage_bucket" "data_bucket_climate123" {
-  name     = "data_bucket_climate123"
-  location = var.region
+  name          = "data_bucket_climate123"
+  location      = var.region
+  force_destroy = true
 }
 
 
 #-----------------------------------------------------------------
 # pubsub
 #-----------------------------------------------------------------
+
+resource "google_service_account" "pubsub_sa" {
+  account_id   = "pubsub-sa"
+  display_name = "Pub/Sub SA that can invoke Cloud Run"
+}
+
+resource "google_project_iam_binding" "cloudrun_invoking" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  members = ["serviceAccount:${google_service_account.pubsub_sa.email}", ]
+}
 
 resource "google_project_service" "pubsub_api" {
   service                    = "pubsub.googleapis.com"
@@ -153,7 +165,7 @@ resource "google_project_service" "cloud_run_api" {
 }
 
 resource "google_cloud_run_service" "downloader_service" {
-  name     = "downloader_service"
+  name     = "downloader-service"
   location = var.region
   template {
     spec {
@@ -175,6 +187,13 @@ resource "google_cloud_run_service" "downloader_service" {
         env {
           name  = "target_bucket"
           value = google_storage_bucket.data_bucket_climate123.name
+        }
+        # requires a lot of memory for geotiffs
+        resources {
+          limits = {
+            # "cpu"    = "1000m"
+            "memory" = "4Gi"
+          }
         }
       }
     }
@@ -199,13 +218,25 @@ resource "google_cloud_run_service" "downloader_service" {
 resource "google_pubsub_subscription" "push_to_downloader" {
   name  = "push-to-downloader"
   topic = google_pubsub_topic.download_request_topic.name
+
   push_config {
     # This has pubsub post it's messages to our cloudrun instance
     push_endpoint = "${google_cloud_run_service.downloader_service.status[0].url}/download"
-    # giving the subscription the same user as the cloudrun instance
-    # ... not sure if this is actually required
-    # oidc_token {
-    #   service_account_email = google_service_account.pubsub_cloudrun_sa.email
-    # }
+    # ensuring that this subscription can invoke cloudrun
+    oidc_token {
+      service_account_email = google_service_account.pubsub_sa.email
+    }
+  }
+
+  # Set the retry policy: never retry isn't possible, 
+  # the minimum is 5 retries
+  retry_policy {
+    # allowing lots of time for locks to be released
+    minimum_backoff = "400s"
+    maximum_backoff = "600s"
   }
 }
+
+# output "bucketname" {
+#   value = google_storage_bucket.data_bucket_climate123
+# }
