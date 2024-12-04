@@ -1,18 +1,9 @@
 import numpy as np
 from flask import Flask, request
-from google.cloud import pubsub_v1
-from google.cloud import storage
-from utils import Bbox, TimeRange
+from download import download
 import base64
 import logging
-import os
 import json
-import shutil
-
-
-# Getting environment variables
-# targetTopic = os.getenv('target_topic')
-# targetBucket = os.getenv('target_bucket')
 
 
 # Configure logging
@@ -24,16 +15,6 @@ logger = logging.getLogger('cloud-run-app')
 app = Flask(__name__)
 app.logger.addHandler(logging.StreamHandler())
 app.logger.setLevel(logging.INFO)
-
-
-# Initialize bucket client
-bucketClient = storage.Client()
-
-
-def getFromBucket(bucketName, blobName, targetPath):
-    bucket = bucketClient.get_bucket(bucketName)
-    blob = bucket.blob(blobName)
-    blob.download_to_filename(targetPath)
 
 
 @app.route("/")
@@ -61,7 +42,8 @@ def process():
     blobName = data["blobName"]
 
     # step 3: process
-    getFromBucket(bucketName, blobName)
+    downloadInto = "./data"
+    downloadedPath = download(bucketName, blobName, downloadInto)
 
     # step 4: output
     return outgoing, 200
