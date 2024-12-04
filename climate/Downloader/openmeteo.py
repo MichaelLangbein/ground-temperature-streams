@@ -1,6 +1,6 @@
-from retry_requests import retry
+# from retry_requests import retry
+# import requests_cache
 import pandas as pd
-import requests_cache
 import openmeteo_requests
 import numpy as np
 
@@ -8,9 +8,10 @@ import numpy as np
 # Setup the Open-Meteo API client with cache and retry on error
 # https://open-meteo.com/en/docs/historical-weather-api
 
-cache_session = requests_cache.CachedSession('.cache', expire_after=-1)
-retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
-openmeteo = openmeteo_requests.Client(session=retry_session)
+# cache_session = requests_cache.CachedSession('.cache', expire_after=-1)
+# retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+# openmeteo = openmeteo_requests.Client(session=retry_session)
+openmeteo = openmeteo_requests.Client()
 
 
 def downloadOpenMeteo(saveCsvsTo: str, displayId: str, lon: int, lat: int, timeRange):

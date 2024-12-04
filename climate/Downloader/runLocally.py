@@ -36,7 +36,7 @@ def downloadData(
 
 
 # %%
-with open("../Infrastructure/.tfvars", "r") as f:
+with open("../Infrastructure/terraform.tfvars", "r") as f:
     for line in f:
         if line.startswith("usgs_username"):
             usgsUsername = line.split("=")[1].strip().replace('"', '')
